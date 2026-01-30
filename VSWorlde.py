@@ -14,6 +14,7 @@ import argparse
 import random
 import sys
 from typing import List, Tuple
+import os
 
 # A curated small set of possible solutions (all lowercase, 5 letters).
 # This list is intentionally limited to avoid reproducing any proprietary list.
@@ -30,6 +31,52 @@ ALLOWED = set(SOLUTIONS) | {
     "brown", "quick", "zebra", "vivid", "young", "quiet", "pound",
     "bound", "stony", "slope", "pride", "trace"
 }
+
+
+def _augment_from_system_dict():
+    """Try to augment `ALLOWED` with 5-letter words from common system dictionaries.
+
+    This avoids shipping huge word lists in the repo while still giving a
+    much larger set of allowed guesses when the system dictionary exists.
+    """
+    dict_paths = [
+        "/usr/share/dict/words",
+        "/usr/dict/words",
+        "/usr/dict/web2",
+        "/usr/share/dict/web2",
+    ]
+    found = False
+    for p in dict_paths:
+        if os.path.exists(p):
+            found = True
+            try:
+                with open(p, encoding="utf-8", errors="ignore") as fh:
+                    for line in fh:
+                        w = line.strip().lower()
+                        if len(w) == 5 and w.isalpha():
+                            ALLOWED.add(w)
+            except OSError:
+                # ignore unreadable system dicts
+                pass
+    # Also, if the project includes a `wordlists` folder with plain files,
+    # load any 5-letter words found there.
+    local_dir = os.path.join(os.path.dirname(__file__), "wordlists")
+    if os.path.isdir(local_dir):
+        for fname in os.listdir(local_dir):
+            fpath = os.path.join(local_dir, fname)
+            if os.path.isfile(fpath):
+                try:
+                    with open(fpath, encoding="utf-8", errors="ignore") as fh:
+                        for line in fh:
+                            w = line.strip().lower()
+                            if len(w) == 5 and w.isalpha():
+                                ALLOWED.add(w)
+                except OSError:
+                    pass
+
+
+# Attempt to augment allowed guesses from available dictionaries.
+_augment_from_system_dict()
 
 GREEN = "🟩"
 YELLOW = "🟨"
